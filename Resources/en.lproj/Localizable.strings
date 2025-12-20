@@ -2,6 +2,7 @@
 "Install_With_TrollStore_text" = "Already installed via TrollStore";
 "Need_Install_With_TrollStore_text" = "Requires TrollStore installation";
 "Reboot_Device_text" = "Reboot Device";
+"Reboot_UserSpace_Device_text" = "Reboot Userspace";
 "Respring_text" = "Respring";
 "Settings_text" = "Settings";
 "Done_text" = "Done";

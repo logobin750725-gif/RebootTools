@@ -2,11 +2,13 @@
 iOS Utils TrollStore App reboot your device  
 **⚠️Need install via TrollStore.**  
 Use system restart code `reboot(0);` is safe and reliable, use it with confidence.  
+Reboot user space compatible with iOS 14～17.0
 **Note: This project will NOT release/store files in parts other than the App sandbox, and will NOT include ANY URL Scheme. You can use it with confidence and will not be detected by third-party app on App Stores. For specific issues, please [view](https://bsky.app/profile/opa334.bsky.social/post/3ll7zkia24c2s).**  
 
 **iOS 重启工具**  
 **⚠️需要TrollStore权限**  
 系统级别重启代码`reboot(0);`安全可靠，放心使用  
+重启用户空间兼容iOS 14～17.0  
 **注意：本项目不会在除本App沙盒以外的部分释放/存储文件，并且不会包含任何URL Scheme，您可以放心使用，而不会被第三方App Store的检测到，具体问题请[查看](https://bsky.app/profile/opa334.bsky.social/post/3ll7zkia24c2s)**  
 
 ## Testing

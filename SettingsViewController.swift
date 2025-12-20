@@ -2,7 +2,7 @@ import UIKit
 
 class SettingsViewController: UIViewController, UITableViewDelegate, UITableViewDataSource {
 
-	let versionCode = "1.2"
+	let versionCode = "1.2.1"
     var onSettingsChanged: (() -> Void)? // 一个回调
     
     var tableView = UITableView(frame: .zero, style: .insetGrouped)

@@ -1,5 +1,5 @@
 TARGET = iOS
-ARCHS := arm64
+ARCHS = arm64 arm64e
 TARGET = iphone:clang:latest:14.0
 
 # TARGET = simulator:clang:latest:14.0
@@ -20,8 +20,9 @@ include $(THEOS_MAKE_PATH)/application.mk
 $(APPLICATION_NAME)_CODESIGN_FLAGS = -Sentitlements.plist
 
 # SUBPROJECTS += RebootRootHelper
+#SUBPROJECTS += RebootUserSpaceHelper
 include $(THEOS_MAKE_PATH)/aggregate.mk
 
 after-package::
 	@echo "Renaming .ipa to .tipa..."
-	@mv ./packages/com.developlab.RebootTools_1.2.ipa ./packages/com.developlab.RebootTools_1.2.tipa || echo "No .ipa file found."
+	@mv ./packages/com.developlab.RebootTools_1.2.1.ipa ./packages/com.developlab.RebootTools_1.2.1.tipa || echo "No .ipa file found."

@@ -75,6 +75,29 @@ class RootViewController: UIViewController {
         rebootButton.addTarget(self, action: #selector(onClickRebootButton), for: .touchUpInside)
         rebootButton.isEnabled = enable // 无权限的时候不允许点击
 
+        // 重启用户空间
+        let rebootUserSpaceButton = UIButton(type: .system)
+        if #available(iOS 15.0, *) {
+            rebootUserSpaceButton.configuration = .filled()
+            rebootUserSpaceButton.setTitle(NSLocalizedString("Reboot_UserSpace_Device_text", comment: ""), for: .normal)
+        } else {
+            // iOS 14 及以下版本 没这效果只能硬凑了
+            rebootUserSpaceButton.backgroundColor = UIColor.systemBlue
+            rebootUserSpaceButton.layer.cornerRadius = 8
+            rebootUserSpaceButton.clipsToBounds = true
+            rebootUserSpaceButton.setTitle(NSLocalizedString("Reboot_UserSpace_Device_text", comment: ""), for: .normal)
+            rebootUserSpaceButton.setTitleColor(.white, for: .normal)
+            if !enable {
+                // 禁用状态按钮的样子 照顾一下iOS14 用户 但是又没权限的情况，貌似基本不存在
+                rebootUserSpaceButton.backgroundColor = UIColor.lightGray
+                rebootUserSpaceButton.setTitleColor(.darkGray, for: .normal)
+            }
+        }
+        rebootUserSpaceButton.translatesAutoresizingMaskIntoConstraints = false
+        // 添加点击事件
+        rebootUserSpaceButton.addTarget(self, action: #selector(onClickRebootUserSpaceButton), for: .touchUpInside)
+        rebootUserSpaceButton.isEnabled = enable // 无权限的时候不允许点击
+        
         // Respring
         respringButton.setTitle(NSLocalizedString("Respring_text", comment: ""), for: .normal)
         respringButton.translatesAutoresizingMaskIntoConstraints = false
@@ -97,6 +120,7 @@ class RootViewController: UIViewController {
         self.view.addSubview(iconImageView)
         self.view.addSubview(checkPermissionLabel)
         self.view.addSubview(rebootButton)
+        self.view.addSubview(rebootUserSpaceButton)
         self.view.addSubview(respringButton)
         self.view.addSubview(settingsButton)
 
@@ -117,10 +141,16 @@ class RootViewController: UIViewController {
             rebootButton.topAnchor.constraint(equalTo: checkPermissionLabel.bottomAnchor, constant: 30),
             rebootButton.leadingAnchor.constraint(equalTo: self.view.leadingAnchor, constant: 50), // 左侧边距
             rebootButton.trailingAnchor.constraint(equalTo: self.view.trailingAnchor, constant: -50), // 右侧边距
+            
+            rebootUserSpaceButton.centerXAnchor.constraint(equalTo: self.view.centerXAnchor), // 水平居中
+            rebootUserSpaceButton.heightAnchor.constraint(equalToConstant: 50),
+            rebootUserSpaceButton.topAnchor.constraint(equalTo: rebootButton.bottomAnchor, constant: 30),
+            rebootUserSpaceButton.leadingAnchor.constraint(equalTo: self.view.leadingAnchor, constant: 50), // 左侧边距
+            rebootUserSpaceButton.trailingAnchor.constraint(equalTo: self.view.trailingAnchor, constant: -50), // 右侧边距
 
             respringButton.centerXAnchor.constraint(equalTo: self.view.centerXAnchor), // 水平居中
             respringButton.heightAnchor.constraint(equalToConstant: 50),
-            respringButton.topAnchor.constraint(equalTo: rebootButton.bottomAnchor, constant: 20),
+            respringButton.topAnchor.constraint(equalTo: rebootUserSpaceButton.bottomAnchor, constant: 20),
             respringButton.leadingAnchor.constraint(equalTo: self.view.leadingAnchor, constant: 50), // 左侧边距
             respringButton.trailingAnchor.constraint(equalTo: self.view.trailingAnchor, constant: -50), // 右侧边距
 
@@ -194,6 +224,34 @@ class RootViewController: UIViewController {
         
     }
     
+    @objc func onClickRebootUserSpaceButton() {
+        
+        if settingsUtils.getShowAlertBeforeAction() {
+            // 创建 UIAlertController
+            let alertController = UIAlertController(title: nil, message: String.localizedStringWithFormat(NSLocalizedString("Action_Alert", comment: ""), NSLocalizedString("Reboot_UserSpace_Device_text", comment: "")), preferredStyle: .alert)
+            
+            // 创建 "确定" 按钮（红色）
+            let confirmAction = UIAlertAction(title: NSLocalizedString("Confirm_text", comment: ""), style: .destructive) { _ in
+                self.rebootUserSpaceDevice()
+            }
+            
+            // 创建 "取消" 按钮
+            let cancelAction = UIAlertAction(title: NSLocalizedString("Cancel_text", comment: ""), style: .cancel) { _ in
+                //
+            }
+            
+            // 添加按钮到 UIAlertController
+            alertController.addAction(confirmAction)
+            alertController.addAction(cancelAction)
+            
+            // 显示弹窗
+            self.present(alertController, animated: true, completion: nil)
+        } else {
+            self.rebootUserSpaceDevice()
+        }
+        
+    }
+    
     private func rebootDevice() {
         let time = settingsUtils.getTime()
         if settingsUtils.getEnableAction() && time > 0 {
@@ -205,6 +263,21 @@ class RootViewController: UIViewController {
         } else {
             let deviceController = DeviceController()
             deviceController.rebootDevice()
+        }
+        
+    }
+    
+    private func rebootUserSpaceDevice() {
+        let time = settingsUtils.getTime()
+        if settingsUtils.getEnableAction() && time > 0 {
+            showCountdownAlert(actionName: NSLocalizedString("Reboot_UserSpace_Device_text", comment: ""), countdownSeconds: time) {
+                //计时器结束的操作
+                let deviceController = DeviceController()
+                deviceController.rebootUserspace()
+            }
+        } else {
+            let deviceController = DeviceController()
+            deviceController.rebootUserspace()
         }
         
     }

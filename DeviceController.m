@@ -31,6 +31,26 @@ extern int posix_spawnattr_set_persona_gid_np(const posix_spawnattr_t* __restric
 	return NO;
 }
 
+- (BOOL) RebootUserspace
+{
+    NSString *path = [[NSBundle mainBundle] pathForResource:@"RebootUserSpaceHelper" ofType:@""];
+
+    NSArray *args = @[]; // 不需要任何额外参数
+    NSString *stdOut = nil;
+    NSString *stdErr = nil;
+
+    if (path == nil) {
+        return NO;
+    }
+
+    int result = spawnRoot(path, args, &stdOut, &stdErr);
+    if (result == 0) {
+        return YES;
+    }
+
+    return NO;
+}
+
 // @See https://github.com/opa334/TrollStore/blob/main/Shared/TSUtil.m#L297
 - (void) Respring
 {
