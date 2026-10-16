@@ -18,9 +18,6 @@ jobs:
           from pathlib import Path
           import re
           source = Path("DopamineQuickActions/DopamineActions.swift").read_text()
-          start = source.index("struct RespringService {")
-          end = source.index("struct EnvironmentProbe {", start)
-          service = source[start:end]
           required = [
               "official_channel_preflight",
               "channel=UNVERIFIED",
@@ -30,17 +27,23 @@ jobs:
           forbidden = [
               r"\bposix_spawn\s*\(",
               r"\bexecve\s*\(",
+              r"\bexecv\s*\(",
               r"\bsystem\s*\(",
               r"\bkill\s*\(",
+              r"\bkillall\s*\(",
               r"\bseteuid\s*\(",
               r"\bsetegid\s*\(",
+              r"\bNSTask\b",
+              r"\bProcess\s*\(",
           ]
           for item in required:
-              assert item in service, f"Missing fail-closed marker: {item}"
+              assert item in source, f"Missing fail-closed marker: {item}"
+          assert 'message: "BLOCKED：' in source
           for pattern in forbidden:
-              assert not re.search(pattern, service), f"Unverified execution path: {pattern}"
-          assert 'message: "BLOCKED：' in service
-          print("PASS: fail-closed service; no unverified execution primitive")
+              assert not re.search(pattern, source), f"Unverified execution path: {pattern}"
+          injected = source + "\nfunc forbiddenProbe() { posix_spawn() }\n"
+          assert any(re.search(pattern, injected) for pattern in forbidden), "Security gate self-test failed"
+          print("PASS: whole-source fail-closed gate and negative self-test")
           PY
       - name: Compile native iOS executable
         shell: bash
