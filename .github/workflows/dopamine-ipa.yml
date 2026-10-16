@@ -79,6 +79,16 @@ jobs:
           zip -qr RELAXIN-Respring-ADHOC.ipa Payload
           unzip -t RELAXIN-Respring-ADHOC.ipa
           shasum -a 256 RELAXIN-Respring-ADHOC.ipa | tee IPA-SHA256.txt
+          {
+            echo "BUILD_COMMIT=${GITHUB_SHA}"
+            echo "BUILD_RUN_ID=${GITHUB_RUN_ID}"
+            echo "BUNDLE_ID=com.logobin.relaxinrespring"
+            echo "TARGET=arm64-apple-ios15.0"
+            echo "AUTHORIZATION_CHANNEL=UNVERIFIED"
+            echo "RESPRING_FUNCTIONAL_STATUS=BLOCKED"
+            echo "DEVICE_RESPRING_TEST=NOT_TESTED"
+            echo "SIGNING=ADHOC"
+          } | tee RELEASE-STATUS.txt
           if codesign -dv Payload/DopamineQuickActions.app 2> codesign-check.txt; then
             echo 'SIGNATURE=SIGNED' | tee SIGNATURE-STATUS.txt
           else
@@ -91,6 +101,7 @@ jobs:
           path: |
             RELAXIN-Respring-ADHOC.ipa
             IPA-SHA256.txt
+            RELEASE-STATUS.txt
             SIGNATURE-STATUS.txt
             codesign-check.txt
             IPA-ENTITLEMENTS.plist
