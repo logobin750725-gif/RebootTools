@@ -1,4 +1,4 @@
-name: Build Dopamine Quick Actions IPA
+name: Build RELAXIN Respring IPA
 on:
   push:
     paths:
@@ -22,9 +22,9 @@ jobs:
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0"><dict>
           <key>CFBundleExecutable</key><string>DopamineQuickActions</string>
-          <key>CFBundleIdentifier</key><string>com.logobin.dopaminequickactions</string>
-          <key>CFBundleName</key><string>Dopamine Quick Actions</string>
-          <key>CFBundleDisplayName</key><string>一鍵執行</string>
+          <key>CFBundleIdentifier</key><string>com.logobin.relaxinrespring</string>
+          <key>CFBundleName</key><string>RELAXIN Respring</string>
+          <key>CFBundleDisplayName</key><string>RELAXIN Respring</string>
           <key>CFBundlePackageType</key><string>APPL</string>
           <key>CFBundleVersion</key><string>1</string>
           <key>CFBundleShortVersionString</key><string>0.1.0</string>
@@ -34,9 +34,19 @@ jobs:
           </dict></plist>
           PLIST
           plutil -lint Payload/DopamineQuickActions.app/Info.plist
-          zip -qr DopamineQuickActions-UNSIGNED.ipa Payload
-          unzip -t DopamineQuickActions-UNSIGNED.ipa
+          zip -qr RELAXIN-Respring-UNSIGNED.ipa Payload
+          unzip -t RELAXIN-Respring-UNSIGNED.ipa
+          shasum -a 256 RELAXIN-Respring-UNSIGNED.ipa | tee IPA-SHA256.txt
+          if codesign -dv Payload/DopamineQuickActions.app 2> codesign-check.txt; then
+            echo 'SIGNATURE=SIGNED' | tee SIGNATURE-STATUS.txt
+          else
+            echo 'SIGNATURE=UNSIGNED (expected)' | tee SIGNATURE-STATUS.txt
+          fi
       - uses: actions/upload-artifact@v4
         with:
-          name: DopamineQuickActions-UNSIGNED
-          path: DopamineQuickActions-UNSIGNED.ipa
+          name: RELAXIN-Respring-UNSIGNED
+          path: |
+            RELAXIN-Respring-UNSIGNED.ipa
+            IPA-SHA256.txt
+            SIGNATURE-STATUS.txt
+            codesign-check.txt
