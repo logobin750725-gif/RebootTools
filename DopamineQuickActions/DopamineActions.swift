@@ -8,7 +8,6 @@ import Darwin
 
 struct RespringView: View {
     @State private var showingConfirmation = false
-    @State private var working = false
     @State private var status = "尚未確認 RELAXIN v0.5.5 的第三方 Respring 特權通道"
     @State private var log = "正在初始化診斷…"
     private let service = RespringService()
@@ -21,12 +20,11 @@ struct RespringView: View {
                 log += "\nphase=button_tapped"
                 showingConfirmation = true
             } label: {
-                Text(working ? "檢查中…" : "⚡ Respring")
+                Text("⚡ Respring")
                     .font(.title2.bold())
                     .frame(maxWidth: .infinity, minHeight: 80)
             }
             .buttonStyle(.borderedProminent)
-            .disabled(working)
             Text(status).foregroundColor(.secondary).multilineTextAlignment(.center)
             Spacer()
             DisclosureGroup("診斷紀錄") {
@@ -53,17 +51,9 @@ struct RespringView: View {
     }
 
     private func execute() {
-        working = true
-        status = "正在檢查可用通道…"
-        log = EnvironmentProbe().report() + "\nphase=button_confirmed\nresult=RUNNING"
-        DispatchQueue.global(qos: .userInitiated).async {
-            let result = service.request()
-            DispatchQueue.main.async {
-                status = result.message
-                log = result.log
-                working = false
-            }
-        }
+        let result = service.request()
+        status = result.message
+        log = result.log + "\nphase=button_confirmed"
     }
 }
 
@@ -83,7 +73,6 @@ struct RespringService {
             message: "BLOCKED：尚無已驗證的 RELAXIN 官方第三方 Respring 通道",
             log: environment + "\nphase=official_channel_preflight\nchannel=UNVERIFIED\nspawn=NOT_ATTEMPTED\nresult=BLOCKED"
         )
-
     }
 }
 
