@@ -83,52 +83,7 @@ struct RespringService {
             message: "BLOCKED：尚無已驗證的 RELAXIN 官方第三方 Respring 通道",
             log: environment + "\nphase=official_channel_preflight\nchannel=UNVERIFIED\nspawn=NOT_ATTEMPTED\nresult=BLOCKED"
         )
-        // RELAXIN's sbreload requires a resolved RootHide jailbreak root and
-        // an already-authorized execution context. Never attempt arbitrary
-        // privilege escalation, an untrusted helper, or a backboardd kill.
-        guard geteuid() == 0 else {
-            return RespringResult(
-                message: "BLOCKED：App 尚未取得 root 執行權限（euid=\(geteuid())）",
-                log: environment + "\nphase=privilege_preflight\nresult=BLOCKED\nerrno=EPERM"
-            )
-        }
-        guard PlatformProbe.isPlatformBinary() else {
-            return RespringResult(
-                message: "BLOCKED：未通過 RELAXIN 平台執行權限檢查",
-                log: environment + "\nphase=platform_preflight\nresult=BLOCKED"
-            )
-        }
-        guard let root = RootHideProbe.jailbreakRoot(),
-              root.hasPrefix("/"), !root.contains("..") else {
-            return RespringResult(
-                message: "BLOCKED：未取得 RootHide systemhook 提供的 jailbreak root",
-                log: environment + "\nphase=jbroot_resolution\nresult=BLOCKED"
-            )
-        }
-        let executable = (root as NSString).appendingPathComponent("usr/bin/sbreload")
-        guard FileManager.default.isExecutableFile(atPath: executable) else {
-            return RespringResult(
-                message: "BLOCKED：找不到可執行的 sbreload",
-                log: environment + "\nphase=sbreload_preflight\npath=\(executable)\nresult=BLOCKED"
-            )
-        }
-        var pid: pid_t = 0
-        let argv: [UnsafeMutablePointer<CChar>?] = [strdup(executable), nil]
-        defer { free(argv[0]) }
-        let spawnStatus = argv.withUnsafeBufferPointer { buffer in
-            posix_spawn(&pid, executable, nil, nil,
-                        UnsafeMutablePointer(mutating: buffer.baseAddress), environ)
-        }
-        guard spawnStatus == 0 else {
-            return RespringResult(
-                message: "FAIL：sbreload 無法啟動（\(spawnStatus)）",
-                log: environment + "\nphase=posix_spawn\npath=\(executable)\nstatus=\(spawnStatus)\nresult=FAIL"
-            )
-        }
-        return RespringResult(
-            message: "已發出 sbreload 指令；SpringBoard 是否完成重啟仍待實機確認",
-            log: environment + "\nphase=dispatched\npath=\(executable)\npid=\(pid)\nresult=UNVERIFIED"
-        )
+
     }
 }
 
