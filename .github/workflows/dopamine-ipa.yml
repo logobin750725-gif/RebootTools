@@ -54,6 +54,35 @@ jobs:
           assert not has_forbidden('Text("hello").font(.system(size: 11))\n'), "Security gate rejected SwiftUI font modifier"
           print("PASS: whole-source fail-closed gate and negative self-test")
           PY
+      - name: Verify RELAXIN v0.5.5 release archive (independent of app build)
+        shell: bash
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          URL="https://github.com/5hux1n/relaxin/releases/download/v0.5.5/Relaxin-v0.5.5.ipa"
+          EXPECTED="91398555cd74d64a70de7ddb1dcf49656372090f1e7e512a0be83eada662fae3"
+          curl --fail --location --retry 2 --connect-timeout 15 --max-time 180 --output /tmp/Relaxin-v0.5.5.ipa "$URL"
+          echo "$EXPECTED  /tmp/Relaxin-v0.5.5.ipa" | shasum -a 256 --check
+          python3 - <<'PY'
+          from zipfile import ZipFile
+          from pathlib import Path
+          from plistlib import loads
+          archive = Path("/tmp/Relaxin-v0.5.5.ipa")
+          with ZipFile(archive) as z:
+              names = z.namelist()
+              apps = sorted({n.split("/")[1] for n in names if n.startswith("Payload/") and len(n.split("/")) > 2 and n.split("/")[1].endswith(".app")})
+              assert apps, "Release IPA has no Payload/*.app"
+              for app in apps:
+                  info_name = f"Payload/{app}/Info.plist"
+                  if info_name in names:
+                      info = loads(z.read(info_name))
+                      print("APP", app, "BUNDLE", info.get("CFBundleIdentifier"), "EXEC", info.get("CFBundleExecutable"))
+              candidates = [n for n in names if "RelaxinPostJailbreak.framework/" in n or n.endswith("RLXPostJailbreakController.h")]
+              print("RELAXIN_FRAMEWORK_CANDIDATES", len(candidates))
+              for n in candidates[:25]:
+                  print("FRAMEWORK_FILE", n)
+          print("PASS: downloaded v0.5.5 IPA hash matches release metadata and archive is readable")
+          PY
       - name: Compile native iOS executable
         shell: bash
         run: |
