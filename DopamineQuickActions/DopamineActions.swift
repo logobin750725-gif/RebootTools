@@ -20,7 +20,7 @@ struct RespringView: View {
                 log += "\nphase=button_tapped"
                 showingConfirmation = true
             } label: {
-                Text("⚡ Respring")
+                Text("檢查 Respring 授權")
                     .font(.title2.bold())
                     .frame(maxWidth: .infinity, minHeight: 80)
             }
@@ -41,8 +41,8 @@ struct RespringView: View {
                 log = EnvironmentProbe().report() + "\nphase=app_started\nresult=READY"
             }
         }
-        .confirmationDialog("確定檢查並嘗試 Respring？", isPresented: $showingConfirmation) {
-            Button("確認") { execute() }
+        .confirmationDialog("僅檢查環境與授權狀態，不會執行 Respring。是否繼續？", isPresented: $showingConfirmation) {
+            Button("開始唯讀檢查") { execute() }
             Button("取消", role: .cancel) {}
         }
         .onChange(of: showingConfirmation) { presented in
@@ -53,7 +53,7 @@ struct RespringView: View {
     private func execute() {
         let result = service.request()
         status = result.message
-        log = result.log + "\nphase=button_confirmed"
+        log = result.log + "\nphase=read_only_check_confirmed"
     }
 }
 
