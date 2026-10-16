@@ -10,7 +10,7 @@ struct RespringView: View {
     @State private var showingConfirmation = false
     @State private var working = false
     @State private var status = "尚未確認 RELAXIN v0.5.5 的第三方 Respring 特權通道"
-    @State private var log = "等待診斷"
+    @State private var log = "正在初始化診斷…"
     private let service = RespringService()
 
     var body: some View {
@@ -37,9 +37,17 @@ struct RespringView: View {
             }
         }
         .padding(24)
+        .onAppear {
+            if log == "正在初始化診斷…" {
+                log = EnvironmentProbe().report() + "\nphase=app_started\nresult=READY"
+            }
+        }
         .confirmationDialog("確定檢查並嘗試 Respring？", isPresented: $showingConfirmation) {
             Button("確認") { execute() }
             Button("取消", role: .cancel) {}
+        }
+        .onChange(of: showingConfirmation) { presented in
+            if presented { log += "\nphase=confirmation_presented" }
         } message: {
             Text("未驗證的特權通道不會執行任何重啟指令。")
         }
@@ -48,6 +56,7 @@ struct RespringView: View {
     private func execute() {
         working = true
         status = "正在檢查可用通道…"
+        log = EnvironmentProbe().report() + "\nphase=button_confirmed\nresult=RUNNING"
         DispatchQueue.global(qos: .userInitiated).async {
             let result = service.request()
             DispatchQueue.main.async {
