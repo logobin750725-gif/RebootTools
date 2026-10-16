@@ -75,6 +75,14 @@ struct RespringResult {
 struct RespringService {
     func request() -> RespringResult {
         let environment = EnvironmentProbe().report()
+        // This standalone binary has no verified RELAXIN v0.5.5 third-party
+        // authorization interface. Platform flags, root UID and a visible
+        // sbreload binary alone do not establish official authorization.
+        // Fail closed BEFORE any process spawn, even on a privileged device.
+        return RespringResult(
+            message: "BLOCKED：尚無已驗證的 RELAXIN 官方第三方 Respring 通道",
+            log: environment + "\nphase=official_channel_preflight\nchannel=UNVERIFIED\nspawn=NOT_ATTEMPTED\nresult=BLOCKED"
+        )
         // RELAXIN's sbreload requires a resolved RootHide jailbreak root and
         // an already-authorized execution context. Never attempt arbitrary
         // privilege escalation, an untrusted helper, or a backboardd kill.
