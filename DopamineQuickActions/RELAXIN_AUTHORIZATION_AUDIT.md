@@ -37,3 +37,10 @@ Until a version-matched RELAXIN-provided, authorized third-party contract is dem
 Build: GitHub Actions #38876637236 success (commit `03c30e02`).
 Official third-party channel: UNVERIFIED / BLOCKED.
 Actual device Respring: NOT TESTED.
+
+## Framework interface discovered (source audit, not a third-party permission grant)
+- Upstream `RelaxinPostJailbreak/RelaxinPostJailbreak.h` imports `RLXPostJailbreakController.h` as an Objective-C framework header.
+- The controller header declares `isAvailable`, `hasActiveRootHideRuntime`, and `performAction:outputHandler:completion:` with `RLXPostJailbreakActionRestartSpringBoard`.
+- The upstream Swift `PostJailbreakSession` instantiates the controller within RELAXIN and checks runtime availability before calling `perform(action:...)`.
+- **Interpretation:** this is a real framework API at source level, but no evidence yet establishes a distributable, loadable third-party framework on the user's device, its ABI compatibility with v0.5.5, or the independent app's root/sandbox authorization. Header visibility is not authorization.
+- **Release gate remains CLOSED:** do not link or call this API from the standalone IPA until dependency packaging, exact v0.5.5 compatibility, runtime privileges and a safe device test are verified.
