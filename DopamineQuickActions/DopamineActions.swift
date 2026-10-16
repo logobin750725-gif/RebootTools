@@ -25,7 +25,6 @@ struct MainView: View {
             Text("執行狀態").font(.headline)
             Text(status).font(.body).foregroundColor(.red).multilineTextAlignment(.center)
             Button("複製診斷結果") { UIPasteboard.general.string = status }
-        }
           }.frame(maxWidth: .infinity)
         }.padding()
         .onReceive(NotificationCenter.default.publisher(for: .init("DopamineActionResult"))) { notification in
