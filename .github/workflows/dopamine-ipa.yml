@@ -92,6 +92,26 @@ jobs:
               for n in appex[:15]:
                   print("BUNDLED_EXTENSION_ENTRY", n)
               print("NOTE: archive filenames cannot prove exported symbols or third-party authorization")
+              import subprocess
+              import tempfile
+              binary_name = "Payload/Relaxin.app/Frameworks/RelaxinEngine.framework/RelaxinEngine"
+              if binary_name in names:
+                  with tempfile.TemporaryDirectory() as d:
+                      binary_path = Path(d) / "RelaxinEngine"
+                      binary_path.write_bytes(z.read(binary_name))
+                      for args in (["xcrun", "otool", "-L", str(binary_path)], ["xcrun", "nm", "-gU", str(binary_path)]):
+                          result = subprocess.run(args, capture_output=True, text=True, check=False)
+                          print("BINARY_INSPECT", args[1], "exit", result.returncode)
+                          lines = result.stdout.splitlines()
+                          print("BINARY_INSPECT_LINES", len(lines))
+                          for line in lines:
+                              if any(term.lower() in line.lower() for term in ("springboard", "respring", "postjailbreak", "restart", "xpc", "jailbreak")):
+                                  print("SYMBOL_MATCH", line[:240])
+                          if result.returncode:
+                              print("BINARY_INSPECT_ERROR", result.stderr[:500])
+              else:
+                  print("BINARY_INSPECT_SKIPPED: RelaxinEngine executable not found")
+
               for n in candidates[:25]:
                   print("FRAMEWORK_FILE", n)
           print("PASS: downloaded v0.5.5 IPA hash matches release metadata and archive is readable")
