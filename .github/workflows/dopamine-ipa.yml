@@ -10,6 +10,38 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
+      - name: Verify fail-closed authorization gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          source = Path("DopamineQuickActions/DopamineActions.swift").read_text()
+          start = source.index("struct RespringService {")
+          end = source.index("struct EnvironmentProbe {", start)
+          service = source[start:end]
+          required = [
+              "official_channel_preflight",
+              "channel=UNVERIFIED",
+              "spawn=NOT_ATTEMPTED",
+              "result=BLOCKED",
+          ]
+          forbidden = [
+              r"\\bposix_spawn\\s*\\(",
+              r"\\bexecve\\s*\\(",
+              r"\\bsystem\\s*\\(",
+              r"\\bkill\\s*\\(",
+              r"\\bseteuid\\s*\\(",
+              r"\\bsetegid\\s*\\(",
+          ]
+          for item in required:
+              assert item in service, f"Missing fail-closed marker: {item}"
+          for pattern in forbidden:
+              assert not re.search(pattern, service), f"Unverified execution path: {pattern}"
+          assert 'message: "BLOCKED：' in service
+          print("PASS: fail-closed service; no unverified execution primitive")
+          PY
       - name: Compile native iOS executable
         shell: bash
         run: |
