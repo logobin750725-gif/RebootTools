@@ -1,6 +1,7 @@
 import SwiftUI
 import Foundation
 import Darwin
+import UIKit
 
 @main struct DopamineActions: App {
     var body: some Scene { WindowGroup { MainView() } }
@@ -16,7 +17,9 @@ struct MainView: View {
             Text("RELAXIN 插件注入已開啟不等於此 App 有系統特權。此版本先檢查指令執行結果。").font(.footnote)
             Button("⚡ Respring") { confirm = 0; showing = true }
             Button("🔄 Userspace Reboot（暫停）") { status = "尚未確認 RELAXIN 的安全 Userspace Reboot 介面；此版本不執行重啟。" }
-            Text(status).font(.footnote)
+            Text("執行狀態").font(.headline)
+            Text(status).font(.body).foregroundColor(.red).multilineTextAlignment(.center)
+            Button("複製診斷結果") { UIPasteboard.general.string = status }
         }
         .padding()
         .onReceive(NotificationCenter.default.publisher(for: .init("DopamineActionResult"))) { notification in
@@ -24,17 +27,25 @@ struct MainView: View {
         }
         .confirmationDialog("執行會中斷目前的工作，確定嗎？", isPresented: $showing) {
             Button("確定執行", role: .destructive) {
-                if let n = confirm { status = run(n) }
+                if let n = confirm {
+                    status = "已按下確定執行，開始檢查…"
+                    DispatchQueue.global(qos: .userInitiated).async {
+                        let result = run(n)
+                        DispatchQueue.main.async { status = result }
+                    }
+                }
             }
             Button("取消", role: .cancel) {}
         }
     }
     func run(_ n: Int) -> String {
-        guard FileManager.default.fileExists(atPath: "/var/jb") else { return "未找到 /var/jb；RELAXIN 可能採用不同路徑，或 App 無權限存取。" }
+        let rootless = FileManager.default.fileExists(atPath: "/var/jb")
+        let candidates = ["/var/jb/usr/bin/killall", "/usr/bin/killall"]
+        guard let path = candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
+            return "找不到 killall；/var/jb 存在：\(rootless)。檢查 RELAXIN 路徑與權限。"
+        }
         guard n == 0 else { return "此版本停用直接 Userspace Reboot，待確認 RELAXIN 官方介面。" }
-        let path = "/var/jb/usr/bin/killall"
         let args = ["killall", "SpringBoard"]
-        guard FileManager.default.isExecutableFile(atPath: path) else { return "找不到可執行檔：\(path)" }
         var pid: pid_t = 0
         let argv: [UnsafeMutablePointer<CChar>?] = args.map { strdup($0) } + [nil]
         defer { for p in argv { if let p = p { free(p) } } }
@@ -57,6 +68,6 @@ struct MainView: View {
                 NotificationCenter.default.post(name: .init("DopamineActionResult"), object: message)
             }
         }
-        return "已送出指令，正在檢查結果（PID \(pid)）"
+        return "已送出：\(path)，PID \(pid)，等待程序結果…"
     }
 }
