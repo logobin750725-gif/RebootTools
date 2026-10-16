@@ -76,10 +76,16 @@ struct RespringService {
                 log: environment + "\nphase=privilege_preflight\nresult=BLOCKED\nerrno=EPERM"
             )
         }
-        guard let root = ProcessInfo.processInfo.environment["JBROOT"],
+        guard PlatformProbe.isPlatformBinary() else {
+            return RespringResult(
+                message: "BLOCKED：未通過 RELAXIN 平台執行權限檢查",
+                log: environment + "\nphase=platform_preflight\nresult=BLOCKED"
+            )
+        }
+        guard let root = RootHideProbe.jailbreakRoot(),
               root.hasPrefix("/"), !root.contains("..") else {
             return RespringResult(
-                message: "BLOCKED：未取得經驗證的 RootHide JBROOT",
+                message: "BLOCKED：未取得 RootHide systemhook 提供的 jailbreak root",
                 log: environment + "\nphase=jbroot_resolution\nresult=BLOCKED"
             )
         }
@@ -120,13 +126,31 @@ struct EnvironmentProbe {
             "\($0): visible=\(fm.fileExists(atPath: $0)), executable=\(fm.isExecutableFile(atPath: $0))"
         }.joined(separator: "\n")
         let platformProbe = PlatformProbe.report()
-        return "platform_probe=\(platformProbe)\niOS=\(UIDevice.current.systemVersion)\nuid=\(getuid()) euid=\(geteuid()) gid=\(getgid()) egid=\(getegid())\nsandbox=UNKNOWN\nRELAXIN=UNVERIFIED\nRootHide=UNVERIFIED\nPATH=\(env["PATH"] ?? "<unset>")\nJBROOT=\(env["JBROOT"] ?? "<unset>")\n" + details
+        let rootProbe = RootHideProbe.jailbreakRoot() ?? "UNAVAILABLE"
+        return "platform_probe=\(platformProbe)\nroot_hide_root=\(rootProbe)\niOS=\(UIDevice.current.systemVersion)\nuid=\(getuid()) euid=\(geteuid()) gid=\(getgid()) egid=\(getegid())\nsandbox=UNKNOWN\nRELAXIN=UNVERIFIED\nRootHide=UNVERIFIED\nPATH=\(env["PATH"] ?? "<unset>")\nJBROOT=\(env["JBROOT"] ?? "<unset>")\n" + details
     }
 }
 
 struct PlatformProbe {
     // Mirrors RELAXIN's csops(CS_OPS_STATUS) platform-binary preflight.
     // It does NOT confer platform privileges or bypass sandboxing.
+    static func isPlatformBinary() -> Bool {
+        return statusAndFlags().map { ($0 & 0x04000000) != 0 } ?? false
+    }
+
+    private static func statusAndFlags() -> UInt32? {
+        typealias CSOps = @convention(c) (pid_t, UInt32, UnsafeMutableRawPointer?, Int) -> Int32
+        guard let handle = dlopen(nil, RTLD_NOW),
+              let symbol = dlsym(handle, "csops") else { return nil }
+        defer { dlclose(handle) }
+        let call = unsafeBitCast(symbol, to: CSOps.self)
+        var flags: UInt32 = 0
+        let status = withUnsafeMutablePointer(to: &flags) {
+            call(getpid(), 0, UnsafeMutableRawPointer($0), MemoryLayout<UInt32>.size)
+        }
+        return status == 0 ? flags : nil
+    }
+
     static func report() -> String {
         typealias CSOps = @convention(c) (pid_t, UInt32, UnsafeMutableRawPointer?, Int) -> Int32
         guard let handle = dlopen(nil, RTLD_NOW),
@@ -143,5 +167,21 @@ struct PlatformProbe {
         let errorCode = status == 0 ? 0 : errno
         let platform = status == 0 && (flags & 0x04000000) != 0
         return "csops_status=\(status) csflags=0x\(String(flags, radix: 16)) platform=\(platform) errno=\(errorCode)"
+    }
+}
+
+struct RootHideProbe {
+    // Match RELAXIN's RTLD_NOLOAD systemhook check; never invent a JBROOT.
+    static func jailbreakRoot() -> String? {
+        guard let handle = dlopen("systemhook.dylib", RTLD_NOW | RTLD_NOLOAD) else {
+            return nil
+        }
+        defer { dlclose(handle) }
+        guard let symbol = dlsym(handle, "get_jbroot") else { return nil }
+        typealias GetRoot = @convention(c) () -> UnsafePointer<CChar>?
+        let getRoot = unsafeBitCast(symbol, to: GetRoot.self)
+        guard let ptr = getRoot() else { return nil }
+        let root = String(cString: ptr)
+        return root.isEmpty ? nil : root
     }
 }
