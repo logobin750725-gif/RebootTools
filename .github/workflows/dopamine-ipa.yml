@@ -79,6 +79,19 @@ jobs:
                       print("APP", app, "BUNDLE", info.get("CFBundleIdentifier"), "EXEC", info.get("CFBundleExecutable"))
               candidates = [n for n in names if "RelaxinPostJailbreak.framework/" in n or n.endswith("RLXPostJailbreakController.h")]
               print("RELAXIN_FRAMEWORK_CANDIDATES", len(candidates))
+              dylibs = [n for n in names if n.endswith(".dylib")]
+              frameworks = [n for n in names if ".framework/" in n]
+              appex = [n for n in names if ".appex/" in n]
+              print("BUNDLED_DYLIB_COUNT", len(dylibs))
+              print("BUNDLED_FRAMEWORK_ENTRY_COUNT", len(frameworks))
+              print("BUNDLED_EXTENSION_ENTRY_COUNT", len(appex))
+              for n in dylibs[:35]:
+                  print("BUNDLED_DYLIB", n)
+              for n in frameworks[:35]:
+                  print("BUNDLED_FRAMEWORK_ENTRY", n)
+              for n in appex[:15]:
+                  print("BUNDLED_EXTENSION_ENTRY", n)
+              print("NOTE: archive filenames cannot prove exported symbols or third-party authorization")
               for n in candidates[:25]:
                   print("FRAMEWORK_FILE", n)
           print("PASS: downloaded v0.5.5 IPA hash matches release metadata and archive is readable")
