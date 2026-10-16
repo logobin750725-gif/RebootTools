@@ -101,6 +101,25 @@ jobs:
           PY
           zip -qr RELAXIN-Respring-ADHOC.ipa Payload
           unzip -t RELAXIN-Respring-ADHOC.ipa
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          import hashlib
+          import plistlib
+          ipa = Path("RELAXIN-Respring-ADHOC.ipa")
+          prefix = "Payload/DopamineQuickActions.app/"
+          with ZipFile(ipa) as z:
+              names = set(z.namelist())
+              for name in (prefix + "Info.plist", prefix + "DopamineQuickActions", prefix + "_CodeSignature/CodeResources"):
+                  assert name in names, f"Missing IPA payload: {name}"
+              info = plistlib.loads(z.read(prefix + "Info.plist"))
+              assert info["CFBundleIdentifier"] == "com.logobin.relaxinrespring"
+              assert info["CFBundleExecutable"] == "DopamineQuickActions"
+              embedded = hashlib.sha256(z.read(prefix + "DopamineQuickActions")).hexdigest()
+          compiled = hashlib.sha256(Path(prefix + "DopamineQuickActions").read_bytes()).hexdigest()
+          assert embedded == compiled, "Packaged executable differs from signed build"
+          print("PASS: IPA contains expected app, code signature and identical executable")
+          PY
           shasum -a 256 RELAXIN-Respring-ADHOC.ipa | tee IPA-SHA256.txt
           {
             echo "BUILD_COMMIT=${GITHUB_SHA}"
