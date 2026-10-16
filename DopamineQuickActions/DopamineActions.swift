@@ -12,9 +12,10 @@ struct MainView: View {
     var body: some View {
         VStack(spacing: 24) {
             Text("Dopamine 一鍵工具").font(.title).bold()
-            Text("僅限已啟用 Dopamine 越獄的裝置")
+            Text("iPhone 11 Pro Max · iOS 18.6 · Dopamine 3.x")
+            Text("注意：此為測試版，Respring 需要越獄執行權限；Userspace Reboot 請用 Dopamine 官方 App。").font(.footnote)
             Button("⚡ Respring") { confirm = 0; showing = true }
-            Button("🔄 Userspace Reboot") { confirm = 1; showing = true }
+            Button("🔄 Userspace Reboot（請使用 Dopamine 官方 App）") { status = "iOS 18.6：為避免系統異常，請使用 Dopamine 3.0.5+ 內建的 Reboot Userspace 功能。此測試版不直接呼叫舊版系統指令。" }
             Text(status).font(.footnote)
         }
         .padding()
@@ -27,8 +28,9 @@ struct MainView: View {
     }
     func run(_ n: Int) -> String {
         guard FileManager.default.fileExists(atPath: "/var/jb") else { return "Dopamine 越獄未啟用" }
-        let path = n == 0 ? "/var/jb/usr/bin/killall" : "/bin/launchctl"
-        let args = n == 0 ? ["killall", "SpringBoard"] : ["launchctl", "reboot", "userspace"]
+        guard n == 0 else { return "此版本停用直接 Userspace Reboot，請使用 Dopamine 官方 App。" }
+        let path = "/var/jb/usr/bin/killall"
+        let args = ["killall", "SpringBoard"]
         guard FileManager.default.isExecutableFile(atPath: path) else { return "找不到可執行檔：\(path)" }
         var pid: pid_t = 0
         let argv: [UnsafeMutablePointer<CChar>?] = args.map { strdup($0) } + [nil]
