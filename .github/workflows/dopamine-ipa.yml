@@ -79,9 +79,26 @@ jobs:
           PLIST
           plutil -lint Payload/DopamineQuickActions.app/Info.plist
           plutil -lint entitlements.plist
+          python3 - <<'PY'
+          import plistlib
+          from pathlib import Path
+          requested = plistlib.loads(Path("entitlements.plist").read_bytes())
+          assert requested == {}, f"Unexpected private entitlements requested: {sorted(requested)}"
+          print("PASS: requested signing entitlements are empty")
+          PY
           codesign --force --sign - --entitlements entitlements.plist Payload/DopamineQuickActions.app
           codesign --verify --verbose=2 Payload/DopamineQuickActions.app
           codesign -d --entitlements :- Payload/DopamineQuickActions.app > IPA-ENTITLEMENTS.plist 2>/dev/null
+          python3 - <<'PY'
+          import plistlib
+          from pathlib import Path
+          signed = plistlib.loads(Path("IPA-ENTITLEMENTS.plist").read_bytes())
+          assert not signed, f"Unexpected signed entitlements: {sorted(signed)}"
+          info = plistlib.loads(Path("Payload/DopamineQuickActions.app/Info.plist").read_bytes())
+          assert info["CFBundleIdentifier"] == "com.logobin.relaxinrespring"
+          assert info["CFBundleExecutable"] == "DopamineQuickActions"
+          print("PASS: signed entitlements empty and app bundle metadata verified")
+          PY
           zip -qr RELAXIN-Respring-ADHOC.ipa Payload
           unzip -t RELAXIN-Respring-ADHOC.ipa
           shasum -a 256 RELAXIN-Respring-ADHOC.ipa | tee IPA-SHA256.txt
