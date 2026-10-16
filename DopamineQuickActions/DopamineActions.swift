@@ -6,86 +6,87 @@ import UIKit
 @main struct DopamineActions: App {
     var body: some Scene { WindowGroup { MainView() } }
 }
+
 struct MainView: View {
-    @State private var confirm: Int? = nil
-    @State private var showing = false
-    @State private var status = "待命"
+    @State private var report = "按「收集診斷」開始。"
+    private let fm = FileManager.default
+
     var body: some View {
         ScrollView {
-          VStack(spacing: 18) {
-            Text("RELAXIN 工具診斷").font(.title2).bold().minimumScaleFactor(0.8)
-            Text("裝置：\(UIDevice.current.model) · iOS \(UIDevice.current.systemVersion)")
-                .font(.subheadline)
-            Text("診斷顯示 UID 501 且找不到 /var/jb 時，請先確認 RELAXIN 是否提供特權 Helper；一般 App 無法直接 Respring。").font(.footnote)
-            Button("檢查環境與權限") {
-                status = diagnostics()
-            }
-            Button("⚡ Respring（需特權）") { confirm = 0; showing = true }
-            Button("🔄 Userspace Reboot（暫停）") { status = "尚未確認 RELAXIN 的安全 Userspace Reboot 介面；此版本不執行重啟。" }
-            Text("執行狀態").font(.headline)
-            Text(status).font(.body).foregroundColor(.red).multilineTextAlignment(.center)
-            Button("複製診斷結果") { UIPasteboard.general.string = status }
-          }.frame(maxWidth: .infinity)
-        }.padding()
-        .onReceive(NotificationCenter.default.publisher(for: .init("DopamineActionResult"))) { notification in
-            if let message = notification.object as? String { status = message }
-        }
-        .confirmationDialog("執行會中斷目前的工作，確定嗎？", isPresented: $showing) {
-            Button("確定執行", role: .destructive) {
-                if let n = confirm {
-                    status = "已按下確定執行，開始檢查…"
-                    DispatchQueue.global(qos: .userInitiated).async {
-                        let result = run(n)
-                        DispatchQueue.main.async { status = result }
-                    }
-                }
-            }
-            Button("取消", role: .cancel) {}
+            VStack(alignment: .leading, spacing: 14) {
+                Text("RELAXIN 權限診斷").font(.title2).bold()
+                Text("iOS \(UIDevice.current.systemVersion) · 唯讀安全診斷")
+                    .font(.footnote)
+                Button("收集完整診斷") { report = diagnostics() }
+                    .buttonStyle(.borderedProminent)
+                Button("⚡ Respring（BLOCKED）") {
+                    report = diagnostics() + "\n\nRespring: BLOCKED。尚無經核實的 RELAXIN 特權 API 或 Helper；未執行 SpringBoard 終止。"
+                }.buttonStyle(.bordered)
+                Button("🔄 Userspace Reboot（BLOCKED）") {
+                    report = diagnostics() + "\n\nUserspace Reboot: BLOCKED。iOS 18.6 / RELAXIN v0.5.5 相容性與特權通道未核實。"
+                }.buttonStyle(.bordered)
+                Button("複製完整診斷文字") { UIPasteboard.general.string = report }
+                    .buttonStyle(.bordered)
+                Text(report).font(.system(size: 12, design: .monospaced))
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }.padding()
         }
     }
-    func diagnostics() -> String {
-        let paths = ["/var/jb", "/var/jb/usr/bin/killall", "/usr/bin/killall", Bundle.main.path(forResource: "RebootUserSpaceHelper", ofType: nil) ?? "/missing-helper"]
-        let lines = paths.map { p in
-            "\(p): exists=\(FileManager.default.fileExists(atPath: p)), executable=\(FileManager.default.isExecutableFile(atPath: p))"
+
+    private func diagnostics() -> String {
+        let uid = getuid(), euid = geteuid(), gid = getgid(), egid = getegid()
+        var lines: [String] = [
+            "RELAXIN diagnostic v0.3 (read-only)",
+            "iOS=\(UIDevice.current.systemVersion)",
+            "uid=\(uid) euid=\(euid) gid=\(gid) egid=\(egid)",
+            "sandbox=UNKNOWN (no supported entitlement/API probe; file visibility is not proof)",
+            "RELAXIN=UNVERIFIED; RootHide=UNVERIFIED (no documented third-party detection API confirmed)",
+            "App bundle=\(Bundle.main.bundlePath)",
+            "Home=\(NSHomeDirectory())",
+            "Process PATH=\(ProcessInfo.processInfo.environment["PATH"] ?? "<unset>")"
+        ]
+        // Show only non-sensitive, explicitly selected environment keys.
+        let keys = ["JBROOT", "THEOS", "DYLD_ROOT_PATH", "PATH", "HOME", "TMPDIR"]
+        for key in keys {
+            lines.append("env[\(key)]=\(ProcessInfo.processInfo.environment[key] ?? "<unset>")")
         }
-        return "UID=\(getuid()), EUID=\(geteuid())\n" + lines.joined(separator: "\n") + "\n提示：檔案存在或 EUID=0 不代表能控制 SpringBoard。"
-    }
-    func run(_ n: Int) -> String {
-        guard n == 0 else { return "Userspace Reboot 尚未通過相容性驗證，禁止執行。" }
-        guard geteuid() == 0 else {
-            return "BLOCKED：目前 EUID=\(geteuid())。已確認一般權限不能 Respring；必須先取得 RELAXIN 官方支援的特權執行通道。"
+        let roots = [
+            ProcessInfo.processInfo.environment["JBROOT"],
+            ProcessInfo.processInfo.environment["DYLD_ROOT_PATH"],
+            "/var/jb", "/private/var/jb", "/private/preboot", "/usr/local",
+            "/var/containers/Bundle/Application"
+        ].compactMap { $0 }.filter { $0.hasPrefix("/") }
+        let uniqueRoots = Array(Set(roots)).sorted()
+        for root in uniqueRoots {
+            var isDir: ObjCBool = false
+            let exists = fm.fileExists(atPath: root, isDirectory: &isDir)
+            lines.append("root candidate \(root): visible=\(exists) directory=\(isDir.boolValue)")
         }
-        let rootless = FileManager.default.fileExists(atPath: "/var/jb")
-        let candidates = ["/var/jb/usr/bin/killall", "/usr/bin/killall"]
-        guard let path = candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
-            return "找不到 killall；/var/jb 存在：\(rootless)。檢查 RELAXIN 路徑與權限。"
+        var paths = ["/usr/bin/killall", "/bin/launchctl"]
+        for root in uniqueRoots {
+            paths += [root + "/usr/bin/killall", root + "/bin/launchctl",
+                      root + "/usr/bin/sbreload", root + "/usr/bin/ldrestart"]
         }
-        guard geteuid() == 0 else {
-            return "BLOCKED：EUID=\(geteuid())，目前 App 沒有 root 身分；不執行無權限的 SpringBoard 終止指令。\n" + diagnostics()
-        }
-        let args = ["killall", "SpringBoard"]
-        var pid: pid_t = 0
-        let argv: [UnsafeMutablePointer<CChar>?] = args.map { strdup($0) } + [nil]
-        defer { for p in argv { if let p = p { free(p) } } }
-        let rc = argv.withUnsafeBufferPointer {
-            posix_spawn(&pid, path, nil, nil, UnsafeMutablePointer(mutating: $0.baseAddress!), environ)
-        }
-        guard rc == 0 else { return "啟動失敗：\(rc)，\(String(cString: strerror(rc)))" }
-        DispatchQueue.global(qos: .utility).async {
-            var waitStatus: Int32 = 0
-            let waited = waitpid(pid, &waitStatus, 0)
-            let message: String
-            if waited == -1 {
-                message = "無法取得程序結果：\(errno)"
-            } else if (waitStatus & 0x7f) == 0 {
-                message = "killall exit code：\((waitStatus >> 8) & 0xff)。若未 Respring，可能沒有權限。"
+        for name in ["RebootUserSpaceHelper", "RebootRootHelper"] {
+            if let bundled = Bundle.main.path(forResource: name, ofType: nil) {
+                paths.append(bundled)
             } else {
-                message = "killall 因訊號結束：\(waitStatus & 0x7f)"
-            }
-            DispatchQueue.main.async {
-                NotificationCenter.default.post(name: .init("DopamineActionResult"), object: message)
+                lines.append("bundled helper \(name)=MISSING")
             }
         }
-        return "已送出：\(path)，PID \(pid)，等待程序結果…"
+        for p in Array(Set(paths)).sorted() {
+            lines.append("absolute path=\(p) exists=\(fm.fileExists(atPath: p)) executable=\(fm.isExecutableFile(atPath: p))")
+        }
+        lines += [
+            "requested argv=[\"killall\", \"SpringBoard\"] (NOT EXECUTED)",
+            "spawn environment=NOT PASSED; posix_spawn=NOT ATTEMPTED",
+            "posix_spawn return=N/A errno=N/A pid=N/A",
+            "waitpid=N/A exit code=N/A stdout=N/A stderr=N/A",
+            "Respring=BLOCKED; Userspace Reboot=BLOCKED",
+            "missing=verified RELAXIN v0.5.5 third-party privileged API or signed/installed helper",
+            "note=UID 0 alone does not establish sandbox escape or SpringBoard control."
+        ]
+        return lines.joined(separator: "\n")
     }
 }
