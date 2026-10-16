@@ -48,9 +48,10 @@ jobs:
           fi
       - uses: actions/upload-artifact@v4
         with:
-          name: RELAXIN-Respring-UNSIGNED
+          name: RELAXIN-Respring-ADHOC
+          if-no-files-found: error
           path: |
-            RELAXIN-Respring-UNSIGNED.ipa
+            RELAXIN-Respring-ADHOC.ipa
             IPA-SHA256.txt
             SIGNATURE-STATUS.txt
             codesign-check.txt
