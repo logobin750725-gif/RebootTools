@@ -11,17 +11,23 @@ struct MainView: View {
     @State private var showing = false
     @State private var status = "待命"
     var body: some View {
-        VStack(spacing: 24) {
-            Text("RELAXIN 一鍵工具（診斷版）").font(.title).bold()
-            Text("iPhone 11 Pro Max · iOS 18.6 · RELAXIN v0.5.5")
+        ScrollView {
+          VStack(spacing: 18) {
+            Text("RELAXIN 工具診斷").font(.title2).bold().minimumScaleFactor(0.8)
+            Text("裝置：\(UIDevice.current.model) · iOS \(UIDevice.current.systemVersion)")
+                .font(.subheadline)
             Text("RELAXIN 插件注入已開啟不等於此 App 有系統特權。此版本先檢查指令執行結果。").font(.footnote)
+            Button("檢查環境與權限") {
+                status = diagnostics()
+            }
             Button("⚡ Respring") { confirm = 0; showing = true }
             Button("🔄 Userspace Reboot（暫停）") { status = "尚未確認 RELAXIN 的安全 Userspace Reboot 介面；此版本不執行重啟。" }
             Text("執行狀態").font(.headline)
             Text(status).font(.body).foregroundColor(.red).multilineTextAlignment(.center)
             Button("複製診斷結果") { UIPasteboard.general.string = status }
         }
-        .padding()
+          }.frame(maxWidth: .infinity)
+        }.padding()
         .onReceive(NotificationCenter.default.publisher(for: .init("DopamineActionResult"))) { notification in
             if let message = notification.object as? String { status = message }
         }
@@ -38,13 +44,23 @@ struct MainView: View {
             Button("取消", role: .cancel) {}
         }
     }
+    func diagnostics() -> String {
+        let paths = ["/var/jb", "/var/jb/usr/bin/killall", "/usr/bin/killall"]
+        let lines = paths.map { p in
+            "\(p): exists=\(FileManager.default.fileExists(atPath: p)), executable=\(FileManager.default.isExecutableFile(atPath: p))"
+        }
+        return "UID=\(getuid()), EUID=\(geteuid())\n" + lines.joined(separator: "\n") + "\n提示：檔案存在或 EUID=0 不代表能控制 SpringBoard。"
+    }
     func run(_ n: Int) -> String {
+        guard n == 0 else { return "Userspace Reboot 尚未通過相容性驗證，禁止執行。" }
         let rootless = FileManager.default.fileExists(atPath: "/var/jb")
         let candidates = ["/var/jb/usr/bin/killall", "/usr/bin/killall"]
         guard let path = candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
             return "找不到 killall；/var/jb 存在：\(rootless)。檢查 RELAXIN 路徑與權限。"
         }
-        guard n == 0 else { return "此版本停用直接 Userspace Reboot，待確認 RELAXIN 官方介面。" }
+        guard geteuid() == 0 else {
+            return "BLOCKED：EUID=\(geteuid())，目前 App 沒有 root 身分；不執行無權限的 SpringBoard 終止指令。\n" + diagnostics()
+        }
         let args = ["killall", "SpringBoard"]
         var pid: pid_t = 0
         let argv: [UnsafeMutablePointer<CChar>?] = args.map { strdup($0) } + [nil]
