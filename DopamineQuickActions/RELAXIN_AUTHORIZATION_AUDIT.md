@@ -10,6 +10,13 @@ iPhone12,5 / iOS 18.6 / RELAXIN v0.5.5 RootHide / TrollStore Lite.
 - `Vendor/Dopamine/BaseBin/libjailbreak/src/jbclient_roothide.c` sends RootHide-domain requests to jailbreakd; no third-party Respring contract has been verified.
 - Public repository default branch is not proof of the user's installed RELAXIN v0.5.5 binary or iOS 18.6 support.
 
+## Additional upstream execution semantics (verified from source)
+- `RLXPostJailbreakActionIdentifier` maps Restart SpringBoard to the string `restart_springboard`. This is an **internal action identifier**, not an IPC endpoint or externally callable URL.
+- `RLXPostJailbreakInstalledThroughTrollStore()` checks a sibling `_TrollStore` marker. This affects the upstream app's sandbox path; the marker **does not grant root or third-party authorization**.
+- `RLXPostJailbreakRunAsEffectiveRoot()` requires successful `seteuid(0)` and `setegid(0)` when the caller is non-root. An app reporting UID/EUID 501 cannot assume those calls will succeed.
+- `RLXPostJailbreakRunUnsandboxed()` records an error if `jbclient_root_set_mac_label` fails, but still invokes its operation and then attempts label restoration. Do not copy this flow into a third-party app without proving the caller's permissions and rollback behavior.
+- The upstream action resumes a suspended `sbreload` process and may fall back to signaling `backboardd`; neither mechanism is appropriate for speculative third-party invocation.
+
 ## Device evidence provided by user
 `uid=euid=gid=egid=501`; JBROOT unset; `/var/jb` and `/private/var/jb` invisible; `/private/preboot` visible but no verified `sbreload`; no verified third-party helper, XPC, daemon, socket or URL scheme.
 
