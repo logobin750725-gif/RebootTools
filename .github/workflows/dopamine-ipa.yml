@@ -34,13 +34,17 @@ jobs:
           </dict></plist>
           PLIST
           plutil -lint Payload/DopamineQuickActions.app/Info.plist
-          zip -qr RELAXIN-Respring-UNSIGNED.ipa Payload
-          unzip -t RELAXIN-Respring-UNSIGNED.ipa
+          plutil -lint entitlements.plist
+          codesign --force --sign - --entitlements entitlements.plist Payload/DopamineQuickActions.app
+          codesign --verify --verbose=2 Payload/DopamineQuickActions.app
+          codesign -d --entitlements :- Payload/DopamineQuickActions.app > IPA-ENTITLEMENTS.plist 2>/dev/null
+          zip -qr RELAXIN-Respring-ADHOC.ipa Payload
+          unzip -t RELAXIN-Respring-ADHOC.ipa
           shasum -a 256 RELAXIN-Respring-UNSIGNED.ipa | tee IPA-SHA256.txt
           if codesign -dv Payload/DopamineQuickActions.app 2> codesign-check.txt; then
             echo 'SIGNATURE=SIGNED' | tee SIGNATURE-STATUS.txt
           else
-            echo 'SIGNATURE=UNSIGNED (expected)' | tee SIGNATURE-STATUS.txt
+            echo 'SIGNATURE=UNVERIFIED' | tee SIGNATURE-STATUS.txt
           fi
       - uses: actions/upload-artifact@v4
         with:
@@ -50,3 +54,4 @@ jobs:
             IPA-SHA256.txt
             SIGNATURE-STATUS.txt
             codesign-check.txt
+            IPA-ENTITLEMENTS.plist
