@@ -1,4 +1,4 @@
-name: Build RELAXIN Respring V1.2 IPA
+name: Build RELAXIN Respring V1.3 IPA
 on:
   push:
     paths:
@@ -22,10 +22,10 @@ jobs:
           plutil -lint Payload/RELAXINRespring.app/Info.plist
           codesign --force --sign - Payload/RELAXINRespring.app
           codesign --verify --verbose=2 Payload/RELAXINRespring.app
-          zip -qr RELAXINRespring-V1.2-ADHOC.ipa Payload
-          unzip -tq RELAXINRespring-V1.2-ADHOC.ipa
+          zip -qr RELAXINRespring-V1.3-ADHOC.ipa Payload
+          unzip -tq RELAXINRespring-V1.3-ADHOC.ipa
           file Payload/RELAXINRespring.app/RELAXINRespring
-          shasum -a 256 RELAXINRespring-V1.2-ADHOC.ipa
+          shasum -a 256 RELAXINRespring-V1.3-ADHOC.ipa
       - uses: actions/upload-artifact@v4
         with:
           name: RELAXINRespring-V1.2-ADHOC

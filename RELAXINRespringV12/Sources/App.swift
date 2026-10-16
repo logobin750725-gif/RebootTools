@@ -83,8 +83,43 @@ struct Runner {
         DispatchQueue.global().async { var s:Int32 = 0; _ = waitpid(pid, &s, 0) }
         return "timeout=3s; process may still be running"
     }
+    static func springBoardPID() -> (pid_t?, String) {
+        var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_ALL, 0]
+        var bytes: size_t = 0
+        let first = mib.withUnsafeMutableBufferPointer { ptr in
+            sysctl(ptr.baseAddress, u_int(ptr.count), nil, &bytes, nil, 0)
+        }
+        if first != 0 { return (nil, "sysctl size failed errno=\(errno)") }
+        guard bytes > 0 else { return (nil, "sysctl returned zero bytes") }
+        let stride = MemoryLayout<kinfo_proc>.stride
+        var processes = [kinfo_proc](repeating: kinfo_proc(), count: (bytes / stride) + 16)
+        let second = processes.withUnsafeMutableBufferPointer { ptr in
+            sysctl(&mib, u_int(mib.count), ptr.baseAddress, &bytes, nil, 0)
+        }
+        if second != 0 { return (nil, "sysctl process list failed errno=\(errno)") }
+        for proc in processes.prefix(bytes / stride) {
+            let name = withUnsafePointer(to: proc.kp_proc.p_comm) { ptr in
+                ptr.withMemoryRebound(to: CChar.self, capacity: MemoryLayout.size(ofValue: proc.kp_proc.p_comm)) {
+                    String(cString: $0)
+                }
+            }
+            if name == "SpringBoard" { return (proc.kp_proc.p_pid, "SpringBoard PID located") }
+        }
+        return (nil, "SpringBoard not visible in sysctl process list")
+    }
     static func run() -> String {
         var logs = [String]()
+        let (springPID, pidInfo) = springBoardPID()
+        logs.append(pidInfo)
+        if let springPID = springPID {
+            let result = kill(springPID, SIGTERM)
+            if result == 0 {
+                return logs.joined(separator:"\n") + "\nSIGTERM delivered to SpringBoard PID=\(springPID); respring not independently verified"
+            }
+            let errorCode = errno
+            logs.append("SIGTERM denied PID=\\(springPID) errno=\(errorCode) \(String(cString: strerror(errorCode)))")
+            // Do not escalate to SIGKILL when permissions or process identity are uncertain.
+        }
         for candidate in candidates() {
             guard FileManager.default.fileExists(atPath:candidate.path), access(candidate.path,X_OK) == 0 else { continue }
             let outcome = spawn(candidate)
