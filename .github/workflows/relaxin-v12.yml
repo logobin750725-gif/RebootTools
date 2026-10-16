@@ -28,6 +28,6 @@ jobs:
           shasum -a 256 RELAXINRespring-V1.3-ADHOC.ipa
       - uses: actions/upload-artifact@v4
         with:
-          name: RELAXINRespring-V1.2-ADHOC
-          path: RELAXINRespringV12/RELAXINRespring-V1.2-ADHOC.ipa
+          name: RELAXINRespring-V1.3-ADHOC
+          path: RELAXINRespringV12/RELAXINRespring-V1.3-ADHOC.ipa
           if-no-files-found: error
