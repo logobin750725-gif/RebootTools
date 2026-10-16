@@ -10,6 +10,7 @@ struct RespringView: View {
     @State private var showingConfirmation = false
     @State private var status = "尚未確認 RELAXIN v0.5.5 的第三方 Respring 特權通道"
     @State private var log = "正在初始化診斷…"
+    @State private var lastCheck = "NOT_RUN"
     private let service = RespringService()
 
     var body: some View {
@@ -26,6 +27,8 @@ struct RespringView: View {
             }
             .buttonStyle(.borderedProminent)
             Text(status).foregroundColor(.secondary).multilineTextAlignment(.center)
+            Text("功能狀態：BLOCKED｜授權檢查：\(lastCheck)")
+                .font(.caption).foregroundColor(.secondary)
             Spacer()
             DisclosureGroup("診斷紀錄") {
                 ScrollView {
@@ -53,6 +56,7 @@ struct RespringView: View {
     private func execute() {
         let result = service.request()
         status = result.message
+        lastCheck = "UNVERIFIED"
         log = result.log + "\nphase=read_only_check_confirmed"
     }
 }
