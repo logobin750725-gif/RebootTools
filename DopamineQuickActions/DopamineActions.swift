@@ -16,11 +16,11 @@ struct MainView: View {
             Text("RELAXIN 工具診斷").font(.title2).bold().minimumScaleFactor(0.8)
             Text("裝置：\(UIDevice.current.model) · iOS \(UIDevice.current.systemVersion)")
                 .font(.subheadline)
-            Text("RELAXIN 插件注入已開啟不等於此 App 有系統特權。此版本先檢查指令執行結果。").font(.footnote)
+            Text("診斷顯示 UID 501 且找不到 /var/jb 時，請先確認 RELAXIN 是否提供特權 Helper；一般 App 無法直接 Respring。").font(.footnote)
             Button("檢查環境與權限") {
                 status = diagnostics()
             }
-            Button("⚡ Respring") { confirm = 0; showing = true }
+            Button("⚡ Respring（需特權）") { confirm = 0; showing = true }
             Button("🔄 Userspace Reboot（暫停）") { status = "尚未確認 RELAXIN 的安全 Userspace Reboot 介面；此版本不執行重啟。" }
             Text("執行狀態").font(.headline)
             Text(status).font(.body).foregroundColor(.red).multilineTextAlignment(.center)
@@ -44,7 +44,7 @@ struct MainView: View {
         }
     }
     func diagnostics() -> String {
-        let paths = ["/var/jb", "/var/jb/usr/bin/killall", "/usr/bin/killall"]
+        let paths = ["/var/jb", "/var/jb/usr/bin/killall", "/usr/bin/killall", Bundle.main.path(forResource: "RebootUserSpaceHelper", ofType: nil) ?? "/missing-helper"]
         let lines = paths.map { p in
             "\(p): exists=\(FileManager.default.fileExists(atPath: p)), executable=\(FileManager.default.isExecutableFile(atPath: p))"
         }
@@ -52,6 +52,9 @@ struct MainView: View {
     }
     func run(_ n: Int) -> String {
         guard n == 0 else { return "Userspace Reboot 尚未通過相容性驗證，禁止執行。" }
+        guard geteuid() == 0 else {
+            return "BLOCKED：目前 EUID=\(geteuid())。已確認一般權限不能 Respring；必須先取得 RELAXIN 官方支援的特權執行通道。"
+        }
         let rootless = FileManager.default.fileExists(atPath: "/var/jb")
         let candidates = ["/var/jb/usr/bin/killall", "/usr/bin/killall"]
         guard let path = candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
