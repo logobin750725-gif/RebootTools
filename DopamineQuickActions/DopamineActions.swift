@@ -1,92 +1,90 @@
 import SwiftUI
-import Foundation
-import Darwin
 import UIKit
+import Darwin
 
-@main struct DopamineActions: App {
-    var body: some Scene { WindowGroup { MainView() } }
+@main struct RELAXINRespringApp: App {
+    var body: some Scene { WindowGroup { RespringView() } }
 }
 
-struct MainView: View {
-    @State private var report = "按「收集診斷」開始。"
-    private let fm = FileManager.default
+struct RespringView: View {
+    @State private var showingConfirmation = false
+    @State private var working = false
+    @State private var status = "尚未確認 RELAXIN v0.5.5 的第三方 Respring 特權通道"
+    @State private var log = "等待診斷"
+    private let service = RespringService()
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                Text("RELAXIN 權限診斷").font(.title2).bold()
-                Text("iOS \(UIDevice.current.systemVersion) · 唯讀安全診斷")
-                    .font(.footnote)
-                Button("收集完整診斷") { report = diagnostics() }
-                    .buttonStyle(.borderedProminent)
-                Button("⚡ Respring（BLOCKED）") {
-                    report = diagnostics() + "\n\nRespring: BLOCKED。尚無經核實的 RELAXIN 特權 API 或 Helper；未執行 SpringBoard 終止。"
-                }.buttonStyle(.bordered)
-                Button("🔄 Userspace Reboot（BLOCKED）") {
-                    report = diagnostics() + "\n\nUserspace Reboot: BLOCKED。iOS 18.6 / RELAXIN v0.5.5 相容性與特權通道未核實。"
-                }.buttonStyle(.bordered)
-                Button("複製完整診斷文字") { UIPasteboard.general.string = report }
-                    .buttonStyle(.bordered)
-                Text(report).font(.system(size: 12, design: .monospaced))
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }.padding()
+        VStack(spacing: 20) {
+            Spacer()
+            Text("RELAXIN Respring").font(.title2).bold()
+            Button {
+                showingConfirmation = true
+            } label: {
+                Text(working ? "檢查中…" : "⚡ Respring")
+                    .font(.title2.bold())
+                    .frame(maxWidth: .infinity, minHeight: 80)
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(working)
+            Text(status).foregroundColor(.secondary).multilineTextAlignment(.center)
+            Spacer()
+            DisclosureGroup("診斷紀錄") {
+                ScrollView {
+                    Text(log).font(.system(size: 11, design: .monospaced))
+                        .textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
+                }.frame(maxHeight: 210)
+                Button("複製診斷") { UIPasteboard.general.string = log }
+            }
+        }
+        .padding(24)
+        .confirmationDialog("確定檢查並嘗試 Respring？", isPresented: $showingConfirmation) {
+            Button("確認") { execute() }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("未驗證的特權通道不會執行任何重啟指令。")
         }
     }
 
-    private func diagnostics() -> String {
-        let uid = getuid(), euid = geteuid(), gid = getgid(), egid = getegid()
-        var lines: [String] = [
-            "RELAXIN diagnostic v0.3 (read-only)",
-            "iOS=\(UIDevice.current.systemVersion)",
-            "uid=\(uid) euid=\(euid) gid=\(gid) egid=\(egid)",
-            "sandbox=UNKNOWN (no supported entitlement/API probe; file visibility is not proof)",
-            "RELAXIN=UNVERIFIED; RootHide=UNVERIFIED (no documented third-party detection API confirmed)",
-            "App bundle=\(Bundle.main.bundlePath)",
-            "Home=\(NSHomeDirectory())",
-            "Process PATH=\(ProcessInfo.processInfo.environment["PATH"] ?? "<unset>")"
-        ]
-        // Show only non-sensitive, explicitly selected environment keys.
-        let keys = ["JBROOT", "THEOS", "DYLD_ROOT_PATH", "PATH", "HOME", "TMPDIR"]
-        for key in keys {
-            lines.append("env[\(key)]=\(ProcessInfo.processInfo.environment[key] ?? "<unset>")")
-        }
-        let roots = [
-            ProcessInfo.processInfo.environment["JBROOT"],
-            ProcessInfo.processInfo.environment["DYLD_ROOT_PATH"],
-            "/var/jb", "/private/var/jb", "/private/preboot", "/usr/local",
-            "/var/containers/Bundle/Application"
-        ].compactMap { $0 }.filter { $0.hasPrefix("/") }
-        let uniqueRoots = Array(Set(roots)).sorted()
-        for root in uniqueRoots {
-            var isDir: ObjCBool = false
-            let exists = fm.fileExists(atPath: root, isDirectory: &isDir)
-            lines.append("root candidate \(root): visible=\(exists) directory=\(isDir.boolValue)")
-        }
-        var paths = ["/usr/bin/killall", "/bin/launchctl"]
-        for root in uniqueRoots {
-            paths += [root + "/usr/bin/killall", root + "/bin/launchctl",
-                      root + "/usr/bin/sbreload", root + "/usr/bin/ldrestart"]
-        }
-        for name in ["RebootUserSpaceHelper", "RebootRootHelper"] {
-            if let bundled = Bundle.main.path(forResource: name, ofType: nil) {
-                paths.append(bundled)
-            } else {
-                lines.append("bundled helper \(name)=MISSING")
+    private func execute() {
+        working = true
+        status = "正在檢查可用通道…"
+        DispatchQueue.global(qos: .userInitiated).async {
+            let result = service.request()
+            DispatchQueue.main.async {
+                status = result.message
+                log = result.log
+                working = false
             }
         }
-        for p in Array(Set(paths)).sorted() {
-            lines.append("absolute path=\(p) exists=\(fm.fileExists(atPath: p)) executable=\(fm.isExecutableFile(atPath: p))")
-        }
-        lines += [
-            "requested argv=[\"killall\", \"SpringBoard\"] (NOT EXECUTED)",
-            "spawn environment=NOT PASSED; posix_spawn=NOT ATTEMPTED",
-            "posix_spawn return=N/A errno=N/A pid=N/A",
-            "waitpid=N/A exit code=N/A stdout=N/A stderr=N/A",
-            "Respring=BLOCKED; Userspace Reboot=BLOCKED",
-            "missing=verified RELAXIN v0.5.5 third-party privileged API or signed/installed helper",
-            "note=UID 0 alone does not establish sandbox escape or SpringBoard control."
-        ]
-        return lines.joined(separator: "\n")
+    }
+}
+
+struct RespringResult {
+    let message: String
+    let log: String
+}
+
+struct RespringService {
+    func request() -> RespringResult {
+        let environment = EnvironmentProbe().report()
+        // No verified third-party RELAXIN v0.5.5 service, socket, notification,
+        // helper, or URL scheme is known. Never infer authorization from a path.
+        return RespringResult(
+            message: "BLOCKED：尚無已驗證的 RELAXIN 特權 API／Helper。請使用 RELAXIN 內建 Respring。",
+            log: environment + "\nrequest=Respring\nchannel=NONE_VERIFIED\nargv=NOT_EXECUTED\nposix_spawn=NOT_ATTEMPTED\nwaitpid=NOT_ATTEMPTED\nerrno=N/A\nstdout=N/A\nstderr=N/A\nresult=BLOCKED"
+        )
+    }
+}
+
+struct EnvironmentProbe {
+    func report() -> String {
+        let env = ProcessInfo.processInfo.environment
+        let fm = FileManager.default
+        let paths = ["/var/jb", "/private/var/jb", "/private/preboot",
+                     "/usr/bin/killall", "/usr/bin/sbreload"]
+        let details = paths.map {
+            "\($0): visible=\(fm.fileExists(atPath: $0)), executable=\(fm.isExecutableFile(atPath: $0))"
+        }.joined(separator: "\n")
+        return "iOS=\(UIDevice.current.systemVersion)\nuid=\(getuid()) euid=\(geteuid()) gid=\(getgid()) egid=\(getegid())\nsandbox=UNKNOWN\nRELAXIN=UNVERIFIED\nRootHide=UNVERIFIED\nPATH=\(env["PATH"] ?? "<unset>")\nJBROOT=\(env["JBROOT"] ?? "<unset>")\n" + details
     }
 }
