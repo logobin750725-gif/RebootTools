@@ -18,6 +18,7 @@ struct RespringView: View {
             Spacer()
             Text("RELAXIN Respring").font(.title2).bold()
             Button {
+                log += "\nphase=button_tapped"
                 showingConfirmation = true
             } label: {
                 Text(working ? "檢查中…" : "⚡ Respring")
@@ -48,8 +49,6 @@ struct RespringView: View {
         }
         .onChange(of: showingConfirmation) { presented in
             if presented { log += "\nphase=confirmation_presented" }
-        } message: {
-            Text("未驗證的特權通道不會執行任何重啟指令。")
         }
     }
 
