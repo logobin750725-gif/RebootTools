@@ -119,6 +119,29 @@ struct EnvironmentProbe {
         let details = paths.map {
             "\($0): visible=\(fm.fileExists(atPath: $0)), executable=\(fm.isExecutableFile(atPath: $0))"
         }.joined(separator: "\n")
-        return "iOS=\(UIDevice.current.systemVersion)\nuid=\(getuid()) euid=\(geteuid()) gid=\(getgid()) egid=\(getegid())\nsandbox=UNKNOWN\nRELAXIN=UNVERIFIED\nRootHide=UNVERIFIED\nPATH=\(env["PATH"] ?? "<unset>")\nJBROOT=\(env["JBROOT"] ?? "<unset>")\n" + details
+        let platformProbe = PlatformProbe.report()
+        return "platform_probe=\(platformProbe)\niOS=\(UIDevice.current.systemVersion)\nuid=\(getuid()) euid=\(geteuid()) gid=\(getgid()) egid=\(getegid())\nsandbox=UNKNOWN\nRELAXIN=UNVERIFIED\nRootHide=UNVERIFIED\nPATH=\(env["PATH"] ?? "<unset>")\nJBROOT=\(env["JBROOT"] ?? "<unset>")\n" + details
+    }
+}
+
+struct PlatformProbe {
+    // Mirrors RELAXIN's csops(CS_OPS_STATUS) platform-binary preflight.
+    // It does NOT confer platform privileges or bypass sandboxing.
+    static func report() -> String {
+        typealias CSOps = @convention(c) (pid_t, UInt32, UnsafeMutableRawPointer?, Int) -> Int32
+        guard let handle = dlopen(nil, RTLD_NOW),
+              let symbol = dlsym(handle, "csops") else {
+            return "csops=UNAVAILABLE"
+        }
+        defer { dlclose(handle) }
+        let call = unsafeBitCast(symbol, to: CSOps.self)
+        var flags: UInt32 = 0
+        errno = 0
+        let status = withUnsafeMutablePointer(to: &flags) {
+            call(getpid(), 0, UnsafeMutableRawPointer($0), MemoryLayout<UInt32>.size)
+        }
+        let errorCode = status == 0 ? 0 : errno
+        let platform = status == 0 && (flags & 0x04000000) != 0
+        return "csops_status=\(status) csflags=0x\(String(flags, radix: 16)) platform=\(platform) errno=\(errorCode)"
     }
 }
