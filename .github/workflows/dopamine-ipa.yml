@@ -39,13 +39,17 @@ jobs:
           for item in required:
               assert item in source, f"Missing fail-closed marker: {item}"
           assert 'message: "BLOCKED：' in source
-          # Inspect executable Swift code, not strings/comments in diagnostic probes.
-          code = re.sub(r'"(?:\\\\.|[^"\\\\])*"', '""', source)
-          code = re.sub(r'//[^\\n]*', '', code)
-          for pattern in forbidden:
-              assert not re.search(pattern, code), f"Unverified execution path: {pattern}"
-          injected = source + "\nfunc forbiddenProbe() { posix_spawn() }\n"
-          assert any(re.search(pattern, injected) for pattern in forbidden), "Security gate self-test failed"
+          # Strip ordinary Swift strings and line comments before scanning code.
+          # Use the identical normalization for both real source and negative tests.
+          def executable_code(text):
+              without_strings = re.sub(r'"(?:\\.|[^"\\])*"', '""', text)
+              return re.sub(r'//[^\n]*', '', without_strings)
+          def has_forbidden(text):
+              return any(re.search(pattern, executable_code(text)) for pattern in forbidden)
+          assert not has_forbidden(source), "Unverified execution primitive in Swift source"
+          assert has_forbidden(source + "\nfunc forbiddenProbe() { posix_spawn() }\n"), "Security gate missed executable spawn"
+          assert not has_forbidden('let example = "posix_spawn()"\n'), "Security gate rejected diagnostic string"
+          assert not has_forbidden('// posix_spawn()\n'), "Security gate rejected comment"
           print("PASS: whole-source fail-closed gate and negative self-test")
           PY
       - name: Compile native iOS executable
