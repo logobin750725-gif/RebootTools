@@ -1,0 +1,42 @@
+name: Build Dopamine Quick Actions IPA
+on:
+  push:
+    paths:
+      - 'DopamineQuickActions/**'
+      - '.github/workflows/dopamine-ipa.yml'
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile native iOS executable
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
+          mkdir -p Payload/DopamineQuickActions.app
+          xcrun swiftc -parse-as-library -target arm64-apple-ios15.0 -sdk "$SDK" -O -framework SwiftUI -framework UIKit DopamineQuickActions/DopamineActions.swift -o Payload/DopamineQuickActions.app/DopamineQuickActions
+          cat > Payload/DopamineQuickActions.app/Info.plist <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+          <key>CFBundleExecutable</key><string>DopamineQuickActions</string>
+          <key>CFBundleIdentifier</key><string>com.logobin.dopaminequickactions</string>
+          <key>CFBundleName</key><string>Dopamine Quick Actions</string>
+          <key>CFBundleDisplayName</key><string>一鍵執行</string>
+          <key>CFBundlePackageType</key><string>APPL</string>
+          <key>CFBundleVersion</key><string>1</string>
+          <key>CFBundleShortVersionString</key><string>0.1.0</string>
+          <key>MinimumOSVersion</key><string>15.0</string>
+          <key>UIDeviceFamily</key><array><integer>1</integer></array>
+          <key>UILaunchScreen</key><dict/>
+          </dict></plist>
+          PLIST
+          plutil -lint Payload/DopamineQuickActions.app/Info.plist
+          zip -qr DopamineQuickActions-UNSIGNED.ipa Payload
+          unzip -t DopamineQuickActions-UNSIGNED.ipa
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DopamineQuickActions-UNSIGNED
+          path: DopamineQuickActions-UNSIGNED.ipa
