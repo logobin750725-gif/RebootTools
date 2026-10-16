@@ -44,3 +44,12 @@ Actual device Respring: NOT TESTED.
 - The upstream Swift `PostJailbreakSession` instantiates the controller within RELAXIN and checks runtime availability before calling `perform(action:...)`.
 - **Interpretation:** this is a real framework API at source level, but no evidence yet establishes a distributable, loadable third-party framework on the user's device, its ABI compatibility with v0.5.5, or the independent app's root/sandbox authorization. Header visibility is not authorization.
 - **Release gate remains CLOSED:** do not link or call this API from the standalone IPA until dependency packaging, exact v0.5.5 compatibility, runtime privileges and a safe device test are verified.
+
+## v0.5.5 release artifact provenance (confirmed release metadata, NOT binary inspection)
+- GitHub release: https://github.com/5hux1n/relaxin/releases/tag/v0.5.5
+- Published: 2026-10-06T14:25:56Z; release text says the repository is an **auto-mirror**, not itself proof of original upstream signing or source-to-binary equivalence.
+- `Relaxin-v0.5.5.ipa`: 38,221,108 bytes; release API SHA-256 `91398555cd74d64a70de7ddb1dcf49656372090f1e7e512a0be83eada662fae3`.
+- `Relaxin-v0.5.5.tipa`: 38,273,380 bytes; release API SHA-256 `01de8538699e3ff84d62196bacfae480d6b9afa6cdd9c46b45e5241f81f0878c`.
+- Release notes mention improved TrollStore Lite compatibility, **not** an authorized standalone third-party Respring interface.
+- These checksums are metadata **published by the mirror**; the release binaries were not downloaded, independently hashed, extracted, disassembled or tested here. Source framework declarations from another repository must not be assumed binary-identical to v0.5.5.
+- Next evidence gate: obtain the release IPA/TIPA through an authorized binary-capable path, compare downloaded SHA-256 to metadata, inspect bundled frameworks and exported symbols, then independently validate runtime permissions. Until then `channel=UNVERIFIED`, `spawn=NOT_ATTEMPTED`, `result=BLOCKED`.
