@@ -40,7 +40,7 @@ jobs:
           codesign -d --entitlements :- Payload/DopamineQuickActions.app > IPA-ENTITLEMENTS.plist 2>/dev/null
           zip -qr RELAXIN-Respring-ADHOC.ipa Payload
           unzip -t RELAXIN-Respring-ADHOC.ipa
-          shasum -a 256 RELAXIN-Respring-UNSIGNED.ipa | tee IPA-SHA256.txt
+          shasum -a 256 RELAXIN-Respring-ADHOC.ipa | tee IPA-SHA256.txt
           if codesign -dv Payload/DopamineQuickActions.app 2> codesign-check.txt; then
             echo 'SIGNATURE=SIGNED' | tee SIGNATURE-STATUS.txt
           else
