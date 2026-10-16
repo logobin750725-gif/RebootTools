@@ -28,7 +28,7 @@ jobs:
               r"\bposix_spawn\s*\(",
               r"\bexecve\s*\(",
               r"\bexecv\s*\(",
-              r"\bsystem\s*\(",
+              r"(?<!\.)\bsystem\s*\(",
               r"\bkill\s*\(",
               r"\bkillall\s*\(",
               r"\bseteuid\s*\(",
@@ -50,6 +50,7 @@ jobs:
           assert has_forbidden(source + "\nfunc forbiddenProbe() { posix_spawn() }\n"), "Security gate missed executable spawn"
           assert not has_forbidden('let example = "posix_spawn()"\n'), "Security gate rejected diagnostic string"
           assert not has_forbidden('// posix_spawn()\n'), "Security gate rejected comment"
+          assert not has_forbidden('Text("hello").font(.system(size: 11))\n'), "Security gate rejected SwiftUI font modifier"
           print("PASS: whole-source fail-closed gate and negative self-test")
           PY
       - name: Compile native iOS executable
