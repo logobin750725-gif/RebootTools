@@ -28,12 +28,12 @@ jobs:
               "result=BLOCKED",
           ]
           forbidden = [
-              r"\\bposix_spawn\\s*\\(",
-              r"\\bexecve\\s*\\(",
-              r"\\bsystem\\s*\\(",
-              r"\\bkill\\s*\\(",
-              r"\\bseteuid\\s*\\(",
-              r"\\bsetegid\\s*\\(",
+              r"\bposix_spawn\s*\(",
+              r"\bexecve\s*\(",
+              r"\bsystem\s*\(",
+              r"\bkill\s*\(",
+              r"\bseteuid\s*\(",
+              r"\bsetegid\s*\(",
           ]
           for item in required:
               assert item in service, f"Missing fail-closed marker: {item}"
