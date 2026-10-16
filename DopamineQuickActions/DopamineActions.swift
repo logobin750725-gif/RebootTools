@@ -11,11 +11,11 @@ struct MainView: View {
     @State private var status = "待命"
     var body: some View {
         VStack(spacing: 24) {
-            Text("Dopamine 一鍵工具").font(.title).bold()
-            Text("iPhone 11 Pro Max · iOS 18.6 · Dopamine 3.x")
-            Text("注意：此為測試版，Respring 需要越獄執行權限；Userspace Reboot 請用 Dopamine 官方 App。").font(.footnote)
+            Text("RELAXIN 一鍵工具（診斷版）").font(.title).bold()
+            Text("iPhone 11 Pro Max · iOS 18.6 · RELAXIN v0.5.5")
+            Text("RELAXIN 插件注入已開啟不等於此 App 有系統特權。此版本先檢查指令執行結果。").font(.footnote)
             Button("⚡ Respring") { confirm = 0; showing = true }
-            Button("🔄 Userspace Reboot（請使用 Dopamine 官方 App）") { status = "iOS 18.6：為避免系統異常，請使用 Dopamine 3.0.5+ 內建的 Reboot Userspace 功能。此測試版不直接呼叫舊版系統指令。" }
+            Button("🔄 Userspace Reboot（暫停）") { status = "尚未確認 RELAXIN 的安全 Userspace Reboot 介面；此版本不執行重啟。" }
             Text(status).font(.footnote)
         }
         .padding()
@@ -30,8 +30,8 @@ struct MainView: View {
         }
     }
     func run(_ n: Int) -> String {
-        guard FileManager.default.fileExists(atPath: "/var/jb") else { return "Dopamine 越獄未啟用" }
-        guard n == 0 else { return "此版本停用直接 Userspace Reboot，請使用 Dopamine 官方 App。" }
+        guard FileManager.default.fileExists(atPath: "/var/jb") else { return "未找到 /var/jb；RELAXIN 可能採用不同路徑，或 App 無權限存取。" }
+        guard n == 0 else { return "此版本停用直接 Userspace Reboot，待確認 RELAXIN 官方介面。" }
         let path = "/var/jb/usr/bin/killall"
         let args = ["killall", "SpringBoard"]
         guard FileManager.default.isExecutableFile(atPath: path) else { return "找不到可執行檔：\(path)" }
